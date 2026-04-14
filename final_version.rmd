@@ -1,0 +1,141 @@
+---
+title: "test"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(ggplot2)
+library(ggfortify)
+library(tidyverse)
+math_final_grade <- read_csv2("student/student-mat.csv")
+glimpse(math_final_grade)
+```
+
+```{r}
+hist(math_final_grade$G3, breaks = 21, main = "G3 distribution")
+```
+
+```{r}
+math_final_grade <- math_final_grade %>% filter(G3 != 0 )
+```
+
+```{r}
+model1<- step(
+  lm(G3 ~ ., data = math_final_grade), 
+  direction = "backward",
+  trace = FALSE
+)
+round(summary(model1)$coef, 3)
+
+```
+
+```{r}
+autoplot(model1, which = 1:2, ncol = 2)
+```
+
+
+```{r}
+#This function is used to check the correlation between G3 and other categorical variables
+anova_test <- function(math_final_grade, target = "G3") {
+  results <- data.frame(
+    variable = character(),
+    p_value = numeric(),
+    stringsAsFactors = FALSE
+  )
+  
+  for (var in names(math_final_grade)) {
+    if (is.factor(math_final_grade[[var]]) || is.character(math_final_grade[[var]])) {
+      formula <- as.formula(paste(target, "~", var))
+      fit <- aov(formula, data = math_final_grade)
+      p_val <- summary(fit)[[1]][["Pr(>F)"]][1]
+      results <- rbind(results, data.frame(variable = var, p_value = p_val))
+    }
+  }
+  
+  results <- results[order(results$p_value), ]
+  return(results)
+}
+
+anova_results <- anova_test(math_final_grade, "G3")
+
+anova_results$p_adjusted <- p.adjust(anova_results$p_value, method = "BH")
+anova_results[anova_results$p_adjusted < 0.1, ]
+```
+
+
+```{r}
+library(dplyr)
+
+num_df <- math_final_grade |> select(where(is.numeric))
+r_with_G3 <- cor(num_df, use = "pairwise.complete.obs", method = "pearson")["G3", ]
+sort(r_with_G3[ names(r_with_G3) != "G3" ], decreasing = TRUE)  
+
+```
+
+
+```{r}
+model2 <- lm(G3 ~ G1 + age + Medu + Fedu + G2 + higher + Mjob + failures + absences + Walc + goout + schoolsup + address + famrel + health, data=math_final_grade) #cor>0.15
+
+autoplot(model2, which = 1:2, ncol = 2)
+```
+
+
+```{r}
+summary(model2)
+```
+
+
+
+
+```{r}
+model3 <- lm(sqrt(G3) ~ G1 + G2 + age + Medu + Fedu+ higher + Mjob + failures + absences + Walc + goout + schoolsup + address  + famrel + health, data=math_final_grade) 
+autoplot(model3, which = 1:2, ncol = 2)
+```
+```{r}
+summary(model3)
+```
+
+
+```{r}
+library(performance)
+check_collinearity(model3)
+```
+
+
+
+
+
+```{r}
+math_final_grade$G1_c <- scale(math_final_grade$G1, center = TRUE, scale = FALSE)
+math_final_grade$G2_c <- scale(math_final_grade$G2, center = TRUE, scale = FALSE)
+```
+
+```{r}
+model4 <- lm(sqrt(G3) ~ G1_c*G2_c + age + Medu + Fedu + higher + Mjob + failures + absences + Walc + goout + schoolsup + address + famrel + health, data=math_final_grade) 
+autoplot(model4, which = 1:2, ncol = 2)
+```
+```{r}
+summary(model4)
+```
+
+
+
+```{r}
+step.back.aic = step(model4, 
+                     direction = "backward", 
+                     trace = FALSE)
+round(summary(step.back.aic)$coef,3)
+```
+
+```{r}
+autoplot(step.back.aic, which = 1:2, ncol = 2)
+```
+
+
+
+

@@ -1,0 +1,276 @@
+---
+title: "A2"
+author: "HONGJIE_DENG"
+date: "2025-10-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+math_final_grade <- read_csv2("student/student-mat.csv")
+glimpse(math_final_grade)
+```
+
+
+```{r}
+library(qtlcharts)
+M1 = lm(G3 ~ .,data=math_final_grade) # Full model
+
+#warning: The lm() will transform the categorical variables to dummy variables.
+```
+
+```{r}
+library(ggfortify)
+autoplot(M1, which = 1:2, ncol = 2)
+```
+#The above two plots prove that my linear model fails to satisify my assumptions: Linearity, homoscedasticity and normality.
+
+
+```{r}
+math_final_grade$absences <- log(math_final_grade$absences + 1)
+M1_fix <- lm(G3 ~ ., data = math_final_grade)
+autoplot(M1_fix, which = 1:2)
+```
+
+
+```{r}
+#This lines of codes identify the outliers existing in my dataset.
+cooksd <- cooks.distance(M1_fix)
+influential <- as.numeric(names(cooksd)[(cooksd > 4*mean(cooksd, na.rm=T))])
+influential
+math_final_grade[influential, ] 
+```
+
+
+```{r}
+clean_data = math_final_grade[-influential, ]
+M1_clean <- lm(G3 ~ ., data = clean_data) #This removes the outliers from my dataset.
+autoplot(M1_clean, which = 1:4)
+```
+
+```{r}
+autoplot(M1_clean, which = 5)
+```
+
+
+```{r}
+#This is the codes for checking the multilinearity
+library(car)
+vif(M1_fix)
+```
+
+
+```{r}
+cor(math_final_grade$G1, math_final_grade$G2)
+#This indicates that G1 has strong correlation with G2
+```
+
+```{r}
+round(summary(M1_clean)$coefficients, 3)
+```
+
+
+#From here, this is the process for backward stepwise selection.--> lower the AIC
+
+```{r}
+M2 <- lm(G3 ~ G2 + G1 + famrel + absences + age + activities, data = clean_data)
+```
+
+
+```{r}
+#We discard G1.
+M_final <- lm(G3 ~ G2 + famrel + absences + failures + activities, data = clean_data)
+summary(M_final)
+```
+
+
+```{r}
+M_pred <- lm(G3 ~ G2 + G1 + famrel + absences + failures + activities, data = clean_data)
+summary(M_pred)
+```
+
+
+```{r}
+step.back.aic = step(M_pred, 
+                     direction = "backward", 
+                     trace = FALSE)
+round(summary(step.back.aic)$coef,3)
+```
+
+
+```{r}
+autoplot(M_pred, which = 1:2, ncol = 2)
+```
+
+```{r}
+autoplot(M_pred, which = 1:2, ncol = 2)
+```
+
+
+
+```{r}
+Q1 <- quantile(math_final_grade$absences, 0.25)
+Q3 <- quantile(math_final_grade$absences, 0.75)
+IQR <- Q3 - Q1
+outliers <- subset(math_final_grade, absences < Q1 - 1.5*IQR | absences > Q3 + 1.5*IQR)
+
+outliers
+```
+
+
+```{r}
+math_final_grade <- math_final_grade %>%
+  mutate(absences_log = log(absences + 1))
+```
+
+
+
+
+```{r}
+library(ggplot2)
+
+# 计算 IQR
+Q1 <- quantile(math_final_grade$failures_log, 0.25)
+Q3 <- quantile(math_final_grade$failures_log, 0.75)
+IQR <- Q3 - Q1
+lower <- Q1 - 1.5 * IQR
+upper <- Q3 + 1.5 * IQR
+
+# 计算异常值
+math_final_grade$outlier_flag <- ifelse(
+  math_final_grade$failures_log < lower | math_final_grade$failures_log > upper,
+  "Outlier", "Normal"
+)
+
+# 绘图
+ggplot(math_final_grade, aes(x = "", y = failures_log, color = outlier_flag)) +
+  geom_boxplot(outlier.shape = NA, fill = "lightblue", color = "darkblue", width = 0.3) +  # 不显示默认异常点
+  geom_jitter(aes(color = outlier_flag),
+              width = 0.1, size = 2, alpha = 0.8) +
+  scale_color_manual(values = c("Normal" = "black", "Outlier" = "red")) +
+  labs(title = "Boxplot of Absences with Outliers Highlighted",
+       y = "Number of School Absences",
+       x = NULL,
+       color = "Observation Type") +
+  theme_minimal(base_size = 13)
+```
+
+```{r}
+math_final_grade <- math_final_grade %>%
+  mutate(failures_log = log(failures + 1))
+```
+
+
+```{r}
+Q1 <- quantile(math_final_grade$failures, 0.25)
+Q3 <- quantile(math_final_grade$failures, 0.75)
+IQR <- Q3 - Q1
+outliers <- subset(math_final_grade, failures < Q1 - 1.5*IQR | failures > Q3 + 1.5*IQR)
+
+outliers
+```
+
+
+```{r}
+# 绘制箱线图
+boxplot(math_final_grade$failures,
+        main = "Boxplot of Failures (with jittered outliers)",
+        ylab = "Number of Past Class Failures",
+        col = "lightblue",
+        border = "darkblue")
+
+# 在箱线图上叠加散点（带随机抖动）
+stripchart(math_final_grade$failures,
+           method = "jitter",    # 加入抖动
+           vertical = TRUE,      # 垂直分布
+           pch = 19,             # 实心点
+           col = "red",
+           add = TRUE)           # 叠加在已有图上
+
+```
+
+
+
+
+```{r}
+table(math_final_grade$activities)
+```
+
+
+```{r}
+library(dplyr)
+
+math_final_grade <- math_final_grade %>%
+  mutate(absence_cat = case_when(
+    absences <= 1 ~ "Less than or equal to 1",
+    absences > 1 ~ "Greater than 1"
+  ))
+
+
+math_final_grade$absence_cat <- factor(math_final_grade$absence_cat,
+                                       levels = c("Less than or equal to 1", "Greater than 1"))
+
+table(math_final_grade$absence_cat)
+```
+
+```{r}
+math_final_grade <- math_final_grade %>%
+  mutate(failures_log = log(failures + 1))
+```
+
+
+```{r}
+math_final_grade <- math_final_grade %>%
+  mutate(G3_log = log(G3 + 1))
+```
+
+
+```{r}
+model1 <- lm(G3_log ~ absences + failures_log + G2 + famrel + absences + age + activities, data=math_final_grade)
+
+model2 <- lm(G3 ~ absences + failures + G2 + famrel + absences + age + activities, data=math_final_grade)
+
+anova(model1)
+```
+
+
+```{r}
+anova(model2)
+```
+
+```{r}
+autoplot(model1, which = 1:2, ncol = 2)
+```
+
+
+```{r}
+autoplot(model2, which = 1:2, ncol = 2)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

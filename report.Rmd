@@ -1,0 +1,145 @@
+---
+title: "Factors Influencing Student Performance in Mathematics"
+author:
+  - name: "Hongjie Deng, Anan Wang, Yi Wang, Ranran Zhang, Jingyi Wu"
+    affiliation: "The University of Sydney"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  pinp::pinp:
+    number_sections: true
+    keep_tex: true
+    latex_engine: xelatex
+
+keywords: ["education", "linear regression", "student performance", "UCI dataset"]
+bibliography: refs.bib
+link-citations: true
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+echo = FALSE, message = FALSE, warning = FALSE,
+fig.align = "center", fig.width = 6.5, fig.height = 4.2
+)
+```
+
+# Abstract
+
+This report examines the important factors influencing students’ Mathematics final grade (G3) using the UCI Student Performance (Math) dataset. After exploratory analysis and variable selection, we built and compared several linear models, taking into consideration multicollinearity and necessary transformations. The final model was selected via cross-validation and out-of-performance test, which explained 62% of variance, prior achievement ((G1+G2)/2)  is identified as the most important predictor, with other factors adding small effects. As residual plots and Q–Q plots revealed nonlinearity and heteroskedasticity failure, a complementary logistic model reinforced that prior stronger grades and positive family support increase the chances of scoring above 10. Overall, Mathematics final grade is driven by earlier grades.
+
+# Introduction
+
+In 2006, around 40% of young people in Portugal left school early—twice the average of the European Union—showing alarming trends in student achievement and engagement. This study baseline attempts to understand what really impacts the academic achievement of students in key subjects. Through the study of the learning environment, family and personal factors, the study attempts to understand what impacts students' academic performance to the highest degree. This should give actionable intelligence to educators and policymakers aimed at performance improvement and dropout rate reduction.In the report, all the data are sourced from Portuguese high schools.
+
+# Dataset
+
+For the analysis, the more objective measure of academic ability within the datasets, the **Mathematics dataset**, was used rather than the **Portuguese language dataset**, which is more influenced by culture and language.
+
+This dataset has 395 observations and 33 variables, 16 of which are numerical and 17 categorical, and no missing variables according to the official source.
+
+Data was collected from Portuguese secondary school students and consisted, among other things, of demographics, family and social background, study habits, and behaviors in school. These variables provide a solid demographic and social foundation to study the constellation of social, personal, and academic factors affecting performance in mathematics.
+
+## Key variables (used later)
+
+- **higher** — wants to take higher education (binary: yes/no)  
+- **Mjob** — mother's job  
+- **romantic** — with a romantic relationship (binary: yes/no)  
+- **goout** — going out with friends (numeric)  
+- **Medu** — mother's education (0–4)  
+- **G2** — second period grade (0–20)  
+- **Walc** — weekend alcohol consumption  
+- **famrel** — quality of family relationships
+
+# Analysis
+
+## Linear
+
+To investigate the key academic and demographic factors influencing students’ final grades (G3), several multiple linear regression models were developed and refined using the student-math dataset. The analysis followed the standard workflow introduced in class, including initial model construction, diagnostic checking, model improvement through transformation and multicollinearity analysis, and final model validation.
+
+The initial model incorporated all theoretically relevant predictors:
+
+$$G3 \sim higher + Mjob + romantic + G2 + G1 + Medu + Fedu + $$ $$goout + failures + age + absences + Walc + famrel + activities$$
+
+The results indicated that G1 and G2 were strong and statistically significant positive predictors of the final grade, suggesting that earlier academic performance plays a dominant role in determining later achievement. Variables such as age, absences, and family relationship (famrel) also showed smaller but significant effects. Although the model achieved a high explanatory power (Adjusted R\^2 = 0.83), residual analysis revealed evidence of non-normality and heteroscedasticity, indicating that key regression assumptions were violated.
+
+To address these issues, a square-root transformation was applied to the dependent variable. The transformed model exhibited improved residual normality and variance stability, while maintaining reasonable explanatory power (Adjusted R\^2 ≈ 0.67). The significance and direction of key predictors remained consistent, confirming that the transformation enhanced model validity and interpretability with only a modest reduction in fit.
+
+Further analysis revealed a strong correlation between G1 and G2 (r = 0.85), indicating severe multicollinearity. To mitigate this issue, the two variables were replaced with their average (G1 + G2)/2, representing overall early academic performance. The modified model successfully eliminated multicollinearity, as shown by more stable coefficient estimates and comparable explanatory power (Adjusted R\^2 ≈ 0.62). In this final form, average prior performance, absences, and famrel were significant predictors, while age and romantic relationships showed mild negative effects.
+
+The AIC-based backward stepwise selection confirmed that no redundant predictors remained, and subsequent 10-fold cross-validation demonstrated that the final model achieved comparable predictive accuracy to the previous model while offering greater parsimony and interpretability. Therefore, the third model was selected as the final specification, providing the best balance between accuracy, robustness, and explanatory clarity.
+
+$$\sqrt{G3} \sim higher + Mjob + romantic + (G1 + G2)/2 + Medu + Fedu + $$ $$goout+ failures + age + absences + Walc + famrel + activities$$
+
+## **Logistic model**
+
+We noticed that our linear model failed to meet the linearity, homoscedasticity , normality assumptions. This motivated us to complement our linear model with a logistic model to better predict math final grade. We also considered the extreme lower-tail observations of G3. Considering the range of G3 is from 0 to 20, we firstly chose the cutpoint 10 to split the continuous final grade G3 into a binary variable；this mid-scale threshold  aligns with the natural grading scheme and produces approximately balanced class distributions. Cross-validation also supported 10 as the best split in terms of overall RMSE/MAE. We then convert the observations whose G3 <= 10 to 0 and  observations whose G3 > 10 to 1. We then fit a logistic regression, with predictors selected from our final linear model. From the logistic model summary plot, we found that prior grade (average of G1 and G2) and strongly significant, while weekend alcohol consumption (Walc) and famrel are also significant at the 5% level;.Other behavioral or social variables such as absences, weekend alcohol consumption, and romantic status show less significant impact. In terms of  the coefficients of significant predictors, we found (G1+G2)/2 increasing one point will increase the G3 > 10 probability by 36.7%; Walc increasing one level increases it by 22.1%; famrel increasing one level increases it by 36.3%; age increasing one year decreases it by 37.6%. This highlights that prior performance and family relationship quality are strongly associated with passing, whereas greater age is associated with a substantially lower probability of passing.These predictors provide complementary evidence to support early inferences system development
+
+# Result
+
+Among the four candidate models tested through transformation and cross-validation, Model 3 was selected as the final specification. It combines G1 and G2 into their average to remove multicollinearity and provides the best balance between accuracy, interpretability, and robustness. The model explains about 62 % of the variance in students’ final mathematics grades (Adjusted R² = 0.62), and the overall F-test (p < 2.2 × 10⁻¹⁶) confirms strong statistical significance.
+
+In this model, prior academic performance ((G1 + G2)/2) is the dominant positive predictor of the final grade(G3), while parental education and family relationships show minor positive associations. Factors such as age, romantic relationship status, and extracurricular activities exhibit minimal additional explanatory power. The independent assumption is reasonable since each student's performance is measured individually and assessed under similar but separate conditions., but the residual–fitted plot displays slight curvature and unequal variance, and the Q–Q plot departs from normality at both tails. Despite these mild violations, the model performs consistently across training and validation folds, indicating stable in-sample and out-of-sample reliability.
+
+
+# Conclusion and discussion
+
+Our findings show that students who perform well earlier tend to continue doing well later. Previous grades are the best indicators of final results. Family support and education background help slightly, but factors like age or social activities don’t make much difference. This suggests that steady effort and consistent learning habits are more important than lifestyle differences.
+However, the model has some clear limitations. It only uses academic and demographic information. It does not include psychological or motivational factors such as attitude, confidence, or teacher interaction, which could also affect grades. The final grade (G3) is unevenly distributed, with many zeros, which may break some of the regression assumptions. The model also assumes everything is linear, but in real life, relationships between factors are often more complex. The residual plots confirm that the errors are not fully normal or constant.
+To improve future analysis, we could add more behavioural and emotional variables and try nonlinear or logistic models that can better handle data with many zeros. In short, consistent past performance remains the strongest and most stable predictor of students’ success in mathematics, but broader data and improved methods could give a more complete understanding.
+
+\newpage
+
+# References
+
+\begingroup
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5em}
+\sloppy
+\emergencystretch=2em
+\Urlmuskip=0mu plus 2mu
+\def\UrlBreaks{\do\/\do-\do\_\do\.\do\?\do\&}
+
+\hangindent=0.5in \hangafter=1
+Allensworth, E., \& Easton, J. Q. (2007). \textit{What matters for staying on-track and graduating in Chicago Public High Schools}. Consortium on Chicago School Research at the University of Chicago. \par
+
+\hangindent=0.5in \hangafter=1
+Keppens, G. (2023). School absenteeism and academic achievement: Does the timing of the absence matter? \textit{Learning and Instruction, 86}, Article 101769. \par
+
+\hangindent=0.5in \hangafter=1
+Zhao, L., \& Zhao, W. (2022). Impacts of family environment on adolescents’ academic achievement: The role of peer interaction quality and educational expectation gap. \textit{Frontiers in Psychology, 13}. \par
+
+\hangindent=0.5in \hangafter=1
+Centers for Disease Control and Prevention. (2024, July 19). \textit{Alcohol behaviors and academic grades}. \par
+
+\hangindent=0.5in \hangafter=1
+Pedersen, T. L., Wickham, H., \& van den Brand, N. (n.d.). \textit{ggplot2: Elegant Graphics for Data Analysis (3e)}. \url{https://ggplot2-book.org/} \par
+
+\hangindent=0.5in \hangafter=1
+Tidyverse. (n.d.). \url{https://tidyverse.org/} \par
+
+\hangindent=0.5in \hangafter=1
+STHDA. (n.d.). \textit{ggfortify: Extension to ggplot2 to handle some popular packages}. \url{https://www.sthda.com/english/wiki/ggfortify-extension-to-ggplot2-to-handle-some-popular-packages-r-software-and-data-visualization} \par
+
+\hangindent=0.5in \hangafter=1
+Kuhn, M. (n.d.). \textit{A Short Introduction to the caret Package}. \url{https://cran.r-project.org/web/packages/caret/vignettes/caret.html} \par
+
+\hangindent=0.5in \hangafter=1
+Wickham, H., Fran\c{c}ois, R., Henry, L., \& M\"uller, K. (n.d.). \textit{A grammar of data manipulation}. \url{https://dplyr.tidyverse.org/} \par
+
+\hangindent=0.5in \hangafter=1
+UCI Machine Learning Repository. (n.d.). \textit{Student Performance}. \url{https://archive.ics.uci.edu/dataset/320/student+performance} \par
+
+\endgroup
+
+
+# Figures
+
+```{r figs_simple, fig.align='center', fig.show='hold', out.width='70%'}
+knitr::include_graphics(c(
+  "report photo/1.png",
+  "report photo/2.png",
+  "report photo/3.png",
+  "report photo/4.jpg",
+  "report photo/5.png"
+))
+```

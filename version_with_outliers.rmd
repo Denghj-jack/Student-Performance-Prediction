@@ -1,0 +1,358 @@
+---
+title: "Version_withG3_outliers"
+author: "HONGJIE_DENG"
+date: "2025-10-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(ggfortify)
+math_final_grade <- read_csv2("student/student-mat.csv")
+glimpse(math_final_grade)
+```
+
+
+```{r}
+library(caret)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+
+df_long <- math_final_grade %>%
+  pivot_longer(cols = c(G3, G1, G2, absences, failures, famrel),
+               names_to = "variable",
+               values_to = "value")
+
+
+ggplot(df_long, aes(x = value, fill = variable)) +
+  geom_histogram(color = "white", bins = 20, show.legend = FALSE) +
+  facet_wrap(~ variable, scales = "free", ncol = 3) +
+  labs(title = "Histograms of G1, G2, Absences, Failures, and Famrel",
+       x = "Value", y = "Count") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 11)
+  )
+
+```
+
+
+```{r}
+hist(math_final_grade$G3, breaks = 21, main = "G3 distribution")
+```
+```{r}
+sum(math_final_grade$G3 <= 10)
+```
+
+
+
+
+```{r}
+#This is the backwards stepwise selection for the full model
+step.back.aic <- step(
+  lm(G3 ~ ., data = math_final_grade), 
+  direction = "backward",
+  trace = FALSE
+)
+round(summary(step.back.aic)$coef, 3)
+```
+
+```{r}
+model0 <- lm(G3 ~ G1 + G2 + absences + famrel + activities + age, data=math_final_grade) 
+autoplot(model0, which = 1:2, ncol = 2)
+```
+```{r}
+model0.1 <- lm(sqrt(G3) ~ G1 + G2 + absences + famrel + activities + age, data=math_final_grade) 
+autoplot(model0.1, which = 1:2, ncol = 2)
+```
+```{r}
+summary(model0.1)
+```
+
+```{r}
+model0.2 <- lm(sqrt(G3) ~ I((G1 + G2)/2) + absences + famrel + activities + age, data=math_final_grade) 
+autoplot(model0.2, which = 1:2, ncol = 2)
+```
+
+```{r}
+summary(model0.2)
+```
+
+
+
+
+
+
+```{r}
+#This function is used to check the correlation between G3 and other categorical variables
+anova_test <- function(math_final_grade, target = "G3") {
+  results <- data.frame(
+    variable = character(),
+    p_value = numeric(),
+    stringsAsFactors = FALSE
+  )
+  
+  for (var in names(math_final_grade)) {
+    if (is.factor(math_final_grade[[var]]) || is.character(math_final_grade[[var]])) {
+      formula <- as.formula(paste(target, "~", var))
+      fit <- aov(formula, data = math_final_grade)
+      p_val <- summary(fit)[[1]][["Pr(>F)"]][1]
+      results <- rbind(results, data.frame(variable = var, p_value = p_val))
+    }
+  }
+  
+  results <- results[order(results$p_value), ]
+  return(results)
+}
+
+anova_results <- anova_test(math_final_grade, "G3")
+
+anova_results$p_adjusted <- p.adjust(anova_results$p_value, method = "BH")
+anova_results[anova_results$p_adjusted < 0.1, ]
+```
+
+
+```{r}
+
+library(dplyr)
+num_df <- math_final_grade |> select(where(is.numeric))
+r_with_G3 <- cor(num_df, use = "pairwise.complete.obs", method = "pearson")["G3", ]
+sort(r_with_G3[ names(r_with_G3) != "G3" ], decreasing = TRUE)  
+```
+
+
+```{r}
+model1 <- lm(G3 ~ higher + Mjob + romantic + G2 + G1 + Medu + Fedu + goout + failures + age+absences+Walc+famrel+activities, data=math_final_grade) 
+autoplot(model1, which = 1:2, ncol = 2) + labs(title = "Model 1")
+```
+
+```{r}
+summary(model1)
+```
+
+
+```{r}
+model2 <- lm(sqrt(G3) ~ higher + Mjob + romantic + G2 + G1 + Medu + Fedu + goout + failures + age+absences+Walc+famrel+activities, data=math_final_grade) 
+autoplot(model2, which = 1:2, ncol = 2)+ labs(title = "Model 2")
+```
+
+```{r}
+summary(model2)
+```
+
+```{r}
+library(broom)
+library(purrr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+models <- list(model1 = model1, model2 = model2)
+
+criteria_df <- map_df(models, ~{
+  tibble(
+    AIC = AIC(.x),
+    BIC = BIC(.x)
+  )
+}, .id = "Model") %>%
+  pivot_longer(cols = c(AIC, BIC), names_to = "Criterion", values_to = "Value")
+
+ggplot(criteria_df, aes(x = Model, y = Value, fill = Criterion)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "AIC and BIC Comparison of Models",
+       x = "Model", y = "Value") +
+  theme_minimal()
+
+```
+
+
+```{r}
+AIC(model1, model2)
+BIC(model1, model2)
+```
+```{r}
+cor(math_final_grade[, c("G1", "G2", "G3")])
+
+ggplot(math_final_grade, aes(x = G1, y = G2)) +
+  geom_point(alpha = 0.6, color = "steelblue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  theme_minimal()
+```
+
+
+
+```{r}
+model3 <- lm(sqrt(G3) ~ higher + Mjob + romantic + I((G1 + G2)/2) + Medu + Fedu + goout + failures + age+absences+Walc+famrel+activities, data=math_final_grade) 
+
+autoplot(model3, which = 1:2, ncol = 2)
+```
+
+
+
+```{r}
+summary(model3)
+```
+
+```{r}
+AIC(model3, model2)
+BIC(model3, model2)
+```
+
+
+```{r}
+step.back.aic = step(model3, 
+                     direction = "backward", 
+                     trace = FALSE)
+summary(step.back.aic)
+```
+
+
+```{r}
+autoplot(step.back.aic, which = 1:2, ncol = 2)
+```
+
+
+```{r}
+set.seed(2)
+
+cv_lm1 = train(
+  G3 ~ higher + Mjob + romantic + G2 + G1 + Medu + Fedu + goout + failures+ age+absences+Walc+famrel+activities,math_final_grade,
+  method = "lm",
+  trControl = trainControl(
+    method = "cv", number = 10,
+    verboseIter = FALSE
+  )
+)
+
+cv_lm2 = train(
+  sqrt(G3) ~ higher + Mjob + romantic + G2 + G1 + Medu + Fedu + goout + failures + age+absences+Walc+famrel+activities,math_final_grade,
+  method = "lm",
+  trControl = trainControl(
+    method = "cv", number = 10,
+    verboseIter = FALSE
+  )
+)
+
+cv_lm3 = train(
+  sqrt(G3) ~ higher + Mjob + romantic + I((G1 + G2)/2) + Medu + Fedu + goout + failures + age+absences+Walc+famrel+activities,math_final_grade,
+  method = "lm",
+  trControl = trainControl(
+    method = "cv", number = 10,
+    verboseIter = FALSE
+  )
+)
+
+cv_lm_fromfullModel = train(
+  sqrt(G3) ~ I((G1 + G2)/2) + absences + famrel + activities + age,math_final_grade,
+  method = "lm",
+  trControl = trainControl(
+    method = "cv", number = 10,
+    verboseIter = FALSE
+  )
+)
+
+
+
+results <- resamples(list(Model1=cv_lm1, Model2=cv_lm2, Model3=cv_lm3 ,Model4=cv_lm_fromfullModel))
+
+summary(results)
+bwplot(results)
+```
+```{r}
+AIC(model0.2 , step.back.aic)
+BIC(model0.2 , step.back.aic)
+```
+
+```{r}
+math_final_grade$pass <- ifelse(math_final_grade$G3 > 0, 1, 0)
+
+model_logit <- glm(pass ~ I((G1 + G2)/2) + absences + Walc + famrel + romantic + activities + age,
+                   data = math_final_grade,
+                   family = binomial)
+
+summary(model_logit)
+```
+
+
+```{r}
+filtered_data <- math_final_grade[math_final_grade$G3 > 0, ]
+```
+
+
+```{r}
+num_df <- filtered_data |> select(where(is.numeric))
+r_with_G3 <- cor(num_df, use = "pairwise.complete.obs", method = "pearson")["G3", ]
+sort(r_with_G3[ names(r_with_G3) != "G3" ], decreasing = TRUE)  
+```
+
+
+```{r}
+#This function is used to check the correlation between G3 and other categorical variables
+anova_test <- function(filtered_data, target = "G3") {
+  results <- data.frame(
+    variable = character(),
+    p_value = numeric(),
+    stringsAsFactors = FALSE
+  )
+  
+  for (var in names(filtered_data)) {
+    if (is.factor(filtered_data[[var]]) || is.character(filtered_data[[var]])) {
+      formula <- as.formula(paste(target, "~", var))
+      fit <- aov(formula, data = filtered_data)
+      p_val <- summary(fit)[[1]][["Pr(>F)"]][1]
+      results <- rbind(results, data.frame(variable = var, p_value = p_val))
+    }
+  }
+  
+  results <- results[order(results$p_value), ]
+  return(results)
+}
+
+anova_results <- anova_test(filtered_data, "G3")
+
+anova_results$p_adjusted <- p.adjust(anova_results$p_value, method = "BH")
+anova_results[anova_results$p_adjusted < 0.1, ]
+```
+
+```{r}
+refitted_model <- lm(G3 ~ G2 + G1 + Walc + age + famrel + Medu + Fedu + goout + absences + failures + schoolsup + address , data = filtered_data)
+
+summary(refitted_model)
+```
+
+```{r}
+autoplot(refitted_model, which = 1:2, ncol = 2)
+```
+
+```{r}
+refitted_model1 <- lm(sqrt(G3) ~ G1 + Walc + age + famrel + Medu + Fedu + goout + absences + failures + schoolsup + address , data = filtered_data)
+```
+
+
+```{r}
+autoplot(refitted_model1, which = 1:2, ncol = 2)
+```
+
+
+```{r}
+step.back.aic2 = step(refitted_model1, 
+                     direction = "backward", 
+                     trace = FALSE)
+summary(step.back.aic2)
+```
+
+
+```{r}
+autoplot(step.back.aic2, which = 1:2, ncol = 2)
+```
+

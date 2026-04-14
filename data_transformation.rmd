@@ -1,0 +1,83 @@
+---
+title: "data_transform"
+author: "Ann"
+date: "2025-10-15"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+math_final_grade <- read_csv2("student/student-mat.csv")
+```
+
+```{r}
+# log failures 
+math_final_grade <- math_final_grade %>%
+  mutate(failures_log = log(failures + 1))
+```
+
+```{r}
+# failures_cat (1)
+math_final_grade <- math_final_grade %>%
+  mutate(failures_cat = case_when(
+    failures <= 1 ~ "Less than or equal to 1",
+    failures > 1  ~ "Greater than 1"
+  ))
+math_final_grade$failures_cat <- factor(math_final_grade$failures_cat,
+                                       levels = c("Less than or equal to 1", "Greater than 1"))
+```
+
+
+```{r}
+# failures_cat1 
+# each
+math_final_grade <- math_final_grade %>%
+  mutate(failures_cat1 = factor(failures,
+                               levels = c(0, 1, 2, 3),
+                               labels = c("No failures", "1 failure", "2 failures", "3 failures"),
+                               ordered = TRUE))
+
+```
+
+```{r}
+# G3_log
+math_final_grade <- math_final_grade %>%
+  mutate(G3_log = log(G3 + 1))
+
+# age_log
+math_final_grade <- math_final_grade %>%
+  mutate(age_log = log(age + 1))
+```
+
+```{r}
+# age_cat 15
+math_final_grade <- math_final_grade %>%
+  mutate(age_cat = case_when(
+    age <= 15 ~ "Less than or equal to 15",
+    age > 15 ~ "Greater than 15"
+  ))
+math_final_grade$age_cat <- factor(math_final_grade$age_cat,
+                                       levels = c("Less than or equal to 15", "Greater than 15"))
+```
+
+```{r}
+## No
+# famrel_cat
+math_final_grade <- math_final_grade %>%
+  mutate(famrel_cat = factor(famrel,
+                             levels = c(1, 2, 3, 4, 5),
+                             labels = c("Very bad", "Bad", "Average", "Good", "Excellent"),
+                             ordered = TRUE))
+
+```
+
+
+
+
+
+
+
+```{r}
+table(math_final_grade$failures)
+```
+
